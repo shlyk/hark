@@ -2,9 +2,12 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 )
 
 func runCapture(t *testing.T, f *fakeExecer, args ...string) (string, error) {
@@ -57,6 +60,63 @@ func TestHistoryEmptyIsOK(t *testing.T) {
 	f := withFakes(t)
 	if _, err := runCapture(t, f, "history"); err != nil {
 		t.Errorf("history with no file should succeed, got %v", err)
+	}
+}
+
+type syncBuffer struct {
+	mu sync.Mutex
+	b  bytes.Buffer
+}
+
+func (s *syncBuffer) Write(p []byte) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.Write(p)
+}
+
+func (s *syncBuffer) String() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.String()
+}
+
+func TestHistoryFollowPrintsNewEntries(t *testing.T) {
+	f := withFakes(t)
+	if err := run(t, f, "send", "first"); err != nil {
+		t.Fatal(err)
+	}
+	orig := followInterval
+	followInterval = 10 * time.Millisecond
+	t.Cleanup(func() { followInterval = orig })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	out := &syncBuffer{}
+	cmd := newRootCmd(f)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"history", "--follow"})
+	done := make(chan error, 1)
+	go func() { done <- cmd.ExecuteContext(ctx) }()
+
+	time.Sleep(50 * time.Millisecond)
+	if err := run(t, f, "send", "second"); err != nil {
+		t.Fatal(err)
+	}
+	time.Sleep(100 * time.Millisecond)
+	cancel()
+	if err := <-done; err != nil {
+		t.Fatalf("history --follow error = %v", err)
+	}
+	got := out.String()
+	if !strings.Contains(got, "first") || !strings.Contains(got, "second") {
+		t.Errorf("follow output missing entries:\n%s", got)
+	}
+}
+
+func TestHistoryFollowRejectsJSON(t *testing.T) {
+	f := withFakes(t)
+	if _, err := runCapture(t, f, "history", "--follow", "--json"); err == nil {
+		t.Error("history --follow --json should be rejected")
 	}
 }
 
