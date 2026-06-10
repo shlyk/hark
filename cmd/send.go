@@ -8,8 +8,6 @@ import (
 	"github.com/shlyk/hark/internal/config"
 	"github.com/shlyk/hark/internal/history"
 	"github.com/shlyk/hark/internal/notify"
-	"github.com/shlyk/hark/internal/presence"
-	"github.com/shlyk/hark/internal/remote"
 
 	"github.com/spf13/cobra"
 )
@@ -35,7 +33,6 @@ func newSendCmd(execer notify.Execer) *cobra.Command {
 			if !cmd.Flags().Changed("sound") && cfg.Sound != "" {
 				sound = cfg.Sound
 			}
-			smart = smart || cfg.Smart
 			msg := strings.Join(args, " ")
 			if once != "" {
 				store, err := history.DefaultStore()
@@ -47,31 +44,14 @@ func newSendCmd(execer notify.Execer) *cobra.Command {
 					}
 				}
 			}
-			n := notify.Notification{Message: msg, Title: title, Subtitle: subtitle, Sound: sound}
-			if err := notify.Send(execer, n); err != nil {
-				return err
-			}
-			// The banner is delivered at this point — record it even if the
-			// optional steps below fail.
-			record(cmd, "send", title, msg, once)
-			if speak || (smart && notify.HeadphonesConnected(execer)) {
-				if err := notify.Say(execer, notify.Speech{Text: msg}); err != nil {
-					return err
-				}
-			}
-			ntfy := remote.Client{Server: cfg.Ntfy.ServerOrDefault(), Topic: cfg.Ntfy.Topic}
-			if push {
-				return ntfy.Send(title, msg)
-			}
-			if cfg.Escalate.Enabled && cfg.Ntfy.Topic != "" &&
-				presence.Away(execer, cfg.Escalate.IdleOrDefault()) {
-				// Best-effort: the banner is already out, so escalation
-				// failure only warns.
-				if err := ntfy.Send(title, msg); err != nil {
-					fmt.Fprintf(cmd.ErrOrStderr(), "warning: %v\n", err)
-				}
-			}
-			return nil
+			return deliver(cmd, execer, cfg, delivery{
+				kind:         "send",
+				notification: notify.Notification{Message: msg, Title: title, Subtitle: subtitle, Sound: sound},
+				speak:        speak,
+				smart:        smart || cfg.Smart,
+				push:         push,
+				once:         once,
+			})
 		},
 	}
 	cmd.Flags().StringVarP(&title, "title", "t", "hark", "notification title")

@@ -24,7 +24,8 @@ Every notification is recorded; see "hark history".`,
 		Version:      version,
 		SilenceUsage: true,
 	}
-	root.AddCommand(newSendCmd(execer), newSayCmd(execer), newAskCmd(execer), newDoctorCmd(execer), newHistoryCmd(), newSkillCmd())
+	root.AddCommand(newSendCmd(execer), newSayCmd(execer), newAskCmd(execer), newDoctorCmd(execer),
+		newHistoryCmd(), newSkillCmd(), newRelayCmd(execer), newHookCmd())
 	return root
 }
 
