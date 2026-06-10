@@ -3,8 +3,10 @@ package cmd
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/shlyk/hark/internal/config"
+	"github.com/shlyk/hark/internal/history"
 	"github.com/shlyk/hark/internal/notify"
 	"github.com/shlyk/hark/internal/presence"
 	"github.com/shlyk/hark/internal/remote"
@@ -12,8 +14,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// onceWindow is how long a --once dedupe key suppresses repeats.
+const onceWindow = 10 * time.Minute
+
 func newSendCmd(execer notify.Execer) *cobra.Command {
-	var title, subtitle, sound string
+	var title, subtitle, sound, once string
 	var speak, smart, push bool
 	cmd := &cobra.Command{
 		Use:   "send <message>",
@@ -32,13 +37,23 @@ func newSendCmd(execer notify.Execer) *cobra.Command {
 			}
 			smart = smart || cfg.Smart
 			msg := strings.Join(args, " ")
+			if once != "" {
+				store, err := history.DefaultStore()
+				if err == nil {
+					dup, err := store.HasRecent(once, time.Now().Add(-onceWindow))
+					if err == nil && dup {
+						fmt.Fprintf(cmd.OutOrStdout(), "skipped: %q already sent within %s\n", once, onceWindow)
+						return nil
+					}
+				}
+			}
 			n := notify.Notification{Message: msg, Title: title, Subtitle: subtitle, Sound: sound}
 			if err := notify.Send(execer, n); err != nil {
 				return err
 			}
 			// The banner is delivered at this point — record it even if the
 			// optional steps below fail.
-			record(cmd, "send", title, msg)
+			record(cmd, "send", title, msg, once)
 			if speak || (smart && notify.HeadphonesConnected(execer)) {
 				if err := notify.Say(execer, notify.Speech{Text: msg}); err != nil {
 					return err
@@ -65,5 +80,6 @@ func newSendCmd(execer notify.Execer) *cobra.Command {
 	cmd.Flags().BoolVar(&speak, "say", false, "also speak the message aloud")
 	cmd.Flags().BoolVar(&smart, "smart", false, "speak the message only when headphones are connected")
 	cmd.Flags().BoolVar(&push, "remote", false, "also push to the configured ntfy topic")
+	cmd.Flags().StringVar(&once, "once", "", "dedupe key: skip if already sent with this key in the last 10 minutes")
 	return cmd
 }

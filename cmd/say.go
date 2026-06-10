@@ -20,7 +20,7 @@ func newSayCmd(execer notify.Execer) *cobra.Command {
 			if err := notify.Say(execer, notify.Speech{Text: text, Voice: voice, Rate: rate}); err != nil {
 				return err
 			}
-			record(cmd, "say", "", text)
+			record(cmd, "say", "", text, "")
 			return nil
 		},
 	}

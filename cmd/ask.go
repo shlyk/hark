@@ -40,7 +40,7 @@ Cancel or timeout exits non-zero. --timeout does not apply to --options
 			if err != nil {
 				return err
 			}
-			record(cmd, "ask", title, q.Prompt+" -> "+answer)
+			record(cmd, "ask", title, q.Prompt+" -> "+answer, "")
 			fmt.Fprintln(cmd.OutOrStdout(), answer)
 			return nil
 		},

@@ -91,6 +91,30 @@ func TestAppendCreatesPrivateFiles(t *testing.T) {
 	}
 }
 
+func TestHasRecent(t *testing.T) {
+	s := tempStore(t)
+	old := Entry{Time: time.Now().Add(-time.Hour), Kind: "send", Message: "old", Key: "k1"}
+	fresh := Entry{Time: time.Now().Add(-time.Minute), Kind: "send", Message: "new", Key: "k2"}
+	for _, e := range []Entry{old, fresh} {
+		if err := s.Append(e); err != nil {
+			t.Fatal(err)
+		}
+	}
+	since := time.Now().Add(-10 * time.Minute)
+	if got, _ := s.HasRecent("k1", since); got {
+		t.Error("HasRecent(k1) = true for an hour-old entry")
+	}
+	if got, _ := s.HasRecent("k2", since); !got {
+		t.Error("HasRecent(k2) = false for a minute-old entry")
+	}
+	if got, _ := s.HasRecent("missing", since); got {
+		t.Error("HasRecent(missing) = true")
+	}
+	if got, _ := s.HasRecent("", since); got {
+		t.Error("HasRecent with empty key must be false")
+	}
+}
+
 func TestDefaultStoreUsesXDGStateHome(t *testing.T) {
 	t.Setenv("XDG_STATE_HOME", "/tmp/xdg-state")
 	s, err := DefaultStore()

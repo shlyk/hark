@@ -9,12 +9,14 @@ import (
 	"time"
 )
 
-// Entry is one recorded notification.
+// Entry is one recorded notification. Key is the optional dedupe key from
+// `send --once`.
 type Entry struct {
 	Time    time.Time `json:"time"`
 	Kind    string    `json:"kind"`
 	Title   string    `json:"title,omitempty"`
 	Message string    `json:"message"`
+	Key     string    `json:"key,omitempty"`
 }
 
 // Store reads and appends a JSONL history file.
@@ -51,6 +53,24 @@ func (s *Store) Append(e Entry) error {
 	}
 	_, err = f.Write(append(line, '\n'))
 	return err
+}
+
+// HasRecent reports whether an entry with the given dedupe key exists at or
+// after since. The empty key never matches.
+func (s *Store) HasRecent(key string, since time.Time) (bool, error) {
+	if key == "" {
+		return false, nil
+	}
+	entries, err := s.Tail(0)
+	if err != nil {
+		return false, err
+	}
+	for _, e := range entries {
+		if e.Key == key && !e.Time.Before(since) {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // Tail returns up to n most recent entries (all if n <= 0). A missing

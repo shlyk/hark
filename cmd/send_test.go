@@ -248,6 +248,30 @@ func TestSendNoEscalationWhenPresent(t *testing.T) {
 	}
 }
 
+func TestSendOnceSkipsDuplicate(t *testing.T) {
+	f := withFakes(t)
+	if err := run(t, f, "send", "build done", "--once", "build-42"); err != nil {
+		t.Fatalf("first send error = %v", err)
+	}
+	first := len(f.runs)
+	out, err := runCapture(t, f, "send", "build done", "--once", "build-42")
+	if err != nil {
+		t.Fatalf("duplicate send error = %v", err)
+	}
+	if len(f.runs) != first {
+		t.Errorf("duplicate send ran commands: %v", f.runs[first:])
+	}
+	if !strings.Contains(out, "skipped") {
+		t.Errorf("duplicate send should say skipped, got %q", out)
+	}
+	if err := run(t, f, "send", "other", "--once", "other-key"); err != nil {
+		t.Fatalf("different key send error = %v", err)
+	}
+	if len(f.runs) == first {
+		t.Error("different key should send")
+	}
+}
+
 func TestSayCommandRunsSay(t *testing.T) {
 	f := withFakes(t)
 	if err := run(t, f, "say", "hello", "world", "--voice", "Samantha"); err != nil {
