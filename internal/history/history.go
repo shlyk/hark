@@ -9,6 +9,7 @@ import (
 	"time"
 )
 
+// Entry is one recorded notification.
 type Entry struct {
 	Time    time.Time `json:"time"`
 	Kind    string    `json:"kind"`
@@ -16,6 +17,7 @@ type Entry struct {
 	Message string    `json:"message"`
 }
 
+// Store reads and appends a JSONL history file.
 type Store struct{ Path string }
 
 // DefaultStore resolves $XDG_STATE_HOME/hark/history.jsonl, defaulting to
@@ -32,11 +34,13 @@ func DefaultStore() (*Store, error) {
 	return &Store{Path: filepath.Join(root, "hark", "history.jsonl")}, nil
 }
 
+// Append writes one entry. The file and directory are user-only: history
+// records everything agents told the user, which may be sensitive.
 func (s *Store) Append(e Entry) error {
-	if err := os.MkdirAll(filepath.Dir(s.Path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(s.Path), 0o700); err != nil {
 		return err
 	}
-	f, err := os.OpenFile(s.Path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	f, err := os.OpenFile(s.Path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return err
 	}
@@ -63,6 +67,8 @@ func (s *Store) Tail(n int) ([]Entry, error) {
 	defer f.Close()
 	var entries []Entry
 	sc := bufio.NewScanner(f)
+	// Lift the 64KiB default token limit; agents can log very long messages.
+	sc.Buffer(make([]byte, 0, 64*1024), 10*1024*1024)
 	for sc.Scan() {
 		var e Entry
 		if json.Unmarshal(sc.Bytes(), &e) == nil {

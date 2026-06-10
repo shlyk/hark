@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newSayCmd() *cobra.Command {
+func newSayCmd(execer notify.Execer) *cobra.Command {
 	var voice string
 	var rate int
 	cmd := &cobra.Command{
@@ -20,7 +20,7 @@ func newSayCmd() *cobra.Command {
 			if err := notify.Say(execer, notify.Speech{Text: text, Voice: voice, Rate: rate}); err != nil {
 				return err
 			}
-			record("say", "", text)
+			record(cmd, "say", "", text)
 			return nil
 		},
 	}

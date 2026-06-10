@@ -6,10 +6,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// execer is the command runner used by all commands; tests replace it.
-var execer notify.Execer = notify.SystemExecer{}
+// version is stamped by the release build:
+// go build -ldflags "-X github.com/shlyk/hark/cmd.version=v1.2.3"
+var version = "dev"
 
-func newRootCmd() *cobra.Command {
+func newRootCmd(execer notify.Execer) *cobra.Command {
 	root := &cobra.Command{
 		Use:   "hark",
 		Short: "Get the user's attention with macOS notifications",
@@ -20,10 +21,11 @@ It is designed for AI agents that need to notify a human, e.g.:
   hark send "Need your input on the migration plan" --say
 
 Every notification is recorded; see "hark history".`,
+		Version:      version,
 		SilenceUsage: true,
 	}
-	root.AddCommand(newSendCmd(), newSayCmd(), newDoctorCmd(), newHistoryCmd())
+	root.AddCommand(newSendCmd(execer), newSayCmd(execer), newDoctorCmd(execer), newHistoryCmd(), newSkillCmd())
 	return root
 }
 
-func Execute() error { return newRootCmd().Execute() }
+func Execute() error { return newRootCmd(notify.SystemExecer{}).Execute() }

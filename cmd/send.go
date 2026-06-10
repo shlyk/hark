@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newSendCmd() *cobra.Command {
+func newSendCmd(execer notify.Execer) *cobra.Command {
 	var title, subtitle, sound string
 	var speak bool
 	cmd := &cobra.Command{
@@ -21,12 +21,14 @@ func newSendCmd() *cobra.Command {
 			if err := notify.Send(execer, n); err != nil {
 				return err
 			}
+			// The banner is delivered at this point — record it even if the
+			// optional speech below fails.
+			record(cmd, "send", title, msg)
 			if speak {
 				if err := notify.Say(execer, notify.Speech{Text: msg}); err != nil {
 					return err
 				}
 			}
-			record("send", title, msg)
 			return nil
 		},
 	}

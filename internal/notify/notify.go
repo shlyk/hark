@@ -27,6 +27,7 @@ func (SystemExecer) Run(name string, args ...string) error {
 
 func (SystemExecer) LookPath(name string) (string, error) { return exec.LookPath(name) }
 
+// Notification describes one banner.
 type Notification struct {
 	Message  string
 	Title    string
@@ -66,6 +67,7 @@ func Send(e Execer, n Notification) error {
 	return nil
 }
 
+// Speech describes one spoken message.
 type Speech struct {
 	Text  string
 	Voice string
@@ -88,6 +90,9 @@ func SayArgs(s Speech) []string {
 func Say(e Execer, s Speech) error {
 	if strings.TrimSpace(s.Text) == "" {
 		return fmt.Errorf("text must not be empty")
+	}
+	if s.Rate < 0 {
+		return fmt.Errorf("rate must not be negative, got %d", s.Rate)
 	}
 	if _, err := e.LookPath("say"); err != nil {
 		return fmt.Errorf("say not found (is this macOS?): %w", err)

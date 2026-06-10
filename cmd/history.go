@@ -42,7 +42,7 @@ func newHistoryCmd() *cobra.Command {
 			return nil
 		},
 	}
-	cmd.Flags().IntVarP(&limit, "limit", "n", 20, "max entries to show")
+	cmd.Flags().IntVarP(&limit, "limit", "n", 20, "max entries to show (0 = all)")
 	cmd.Flags().BoolVar(&asJSON, "json", false, "output a JSON array")
 	return cmd
 }

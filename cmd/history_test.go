@@ -7,10 +7,10 @@ import (
 	"testing"
 )
 
-func runCapture(t *testing.T, args ...string) (string, error) {
+func runCapture(t *testing.T, f *fakeExecer, args ...string) (string, error) {
 	t.Helper()
 	var out bytes.Buffer
-	cmd := newRootCmd()
+	cmd := newRootCmd(f)
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
 	cmd.SetArgs(args)
@@ -19,14 +19,14 @@ func runCapture(t *testing.T, args ...string) (string, error) {
 }
 
 func TestHistoryShowsSentNotifications(t *testing.T) {
-	withFakes(t)
-	if err := run(t, "send", "first"); err != nil {
+	f := withFakes(t)
+	if err := run(t, f, "send", "first"); err != nil {
 		t.Fatal(err)
 	}
-	if err := run(t, "send", "second"); err != nil {
+	if err := run(t, f, "send", "second"); err != nil {
 		t.Fatal(err)
 	}
-	out, err := runCapture(t, "history")
+	out, err := runCapture(t, f, "history")
 	if err != nil {
 		t.Fatalf("history error = %v", err)
 	}
@@ -36,11 +36,11 @@ func TestHistoryShowsSentNotifications(t *testing.T) {
 }
 
 func TestHistoryJSON(t *testing.T) {
-	withFakes(t)
-	if err := run(t, "send", "hello"); err != nil {
+	f := withFakes(t)
+	if err := run(t, f, "send", "hello"); err != nil {
 		t.Fatal(err)
 	}
-	out, err := runCapture(t, "history", "--json")
+	out, err := runCapture(t, f, "history", "--json")
 	if err != nil {
 		t.Fatalf("history --json error = %v", err)
 	}
@@ -54,15 +54,15 @@ func TestHistoryJSON(t *testing.T) {
 }
 
 func TestHistoryEmptyIsOK(t *testing.T) {
-	withFakes(t)
-	if _, err := runCapture(t, "history"); err != nil {
+	f := withFakes(t)
+	if _, err := runCapture(t, f, "history"); err != nil {
 		t.Errorf("history with no file should succeed, got %v", err)
 	}
 }
 
 func TestDoctorReportsChecks(t *testing.T) {
-	withFakes(t)
-	out, err := runCapture(t, "doctor")
+	f := withFakes(t)
+	out, err := runCapture(t, f, "doctor")
 	if err != nil {
 		t.Fatalf("doctor error = %v\n%s", err, out)
 	}

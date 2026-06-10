@@ -102,6 +102,13 @@ func TestSayArgs(t *testing.T) {
 	}
 }
 
+func TestSayRejectsNegativeRate(t *testing.T) {
+	f := &fakeExecer{}
+	if err := Say(f, Speech{Text: "hi", Rate: -50}); err == nil {
+		t.Error("Say() with negative rate should error")
+	}
+}
+
 func TestSayRejectsEmptyText(t *testing.T) {
 	f := &fakeExecer{}
 	if err := Say(f, Speech{Text: ""}); err == nil {

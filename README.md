@@ -43,10 +43,12 @@ hark say "Deploy is done" --voice Samantha       # speech only
 hark history -n 20                               # what pinged you lately
 hark history --json                              # machine-readable
 hark doctor                                      # verify delivery works
+hark skill                                       # install the agent skill (Claude Code + Codex)
 ```
 
 Run `hark doctor` once after installing — it checks dependencies, sends a
-test banner, and tells you if notification permission needs to be granted.
+test banner, and reminds you how to grant notification permission if no
+banner appears.
 
 ## For AI agents
 
@@ -59,12 +61,16 @@ task finished, input is needed, or an error requires attention.
 - Message text is passed safely — quotes, backslashes, and AppleScript in
   the message cannot break or inject anything.
 
-Example instruction for your agent's config (e.g. `CLAUDE.md`):
+hark ships an [agent skill](skill/SKILL.md) that teaches agents when and how
+to notify you. Install it once:
 
-```markdown
-When a long-running task completes or you need my input while I'm away,
-notify me: `hark send "<short message>" -t "<source>"`.
+```sh
+hark skill                    # ~/.claude/skills + ~/.codex/skills (all your projects)
+hark skill --project          # ./.claude/skills + ./.codex/skills (commit with a repo)
+hark skill --agent claude     # only one agent
 ```
+
+Existing files are overwritten — re-run `hark skill` after upgrading.
 
 ## Notes
 

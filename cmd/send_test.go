@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -8,37 +9,37 @@ import (
 )
 
 type fakeExecer struct {
-	runs [][]string
+	runs     [][]string
+	failName string // commands with this name fail
 }
 
 func (f *fakeExecer) Run(name string, args ...string) error {
 	f.runs = append(f.runs, append([]string{name}, args...))
+	if name == f.failName {
+		return errors.New(name + " failed")
+	}
 	return nil
 }
 
 func (f *fakeExecer) LookPath(name string) (string, error) { return "/usr/bin/" + name, nil }
 
-// withFakes swaps in a fake execer and a temp history path for one test.
+// withFakes returns a fake execer and points history at a temp dir.
 func withFakes(t *testing.T) *fakeExecer {
 	t.Helper()
-	f := &fakeExecer{}
-	orig := execer
-	execer = f
-	t.Cleanup(func() { execer = orig })
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
-	return f
+	return &fakeExecer{}
 }
 
-func run(t *testing.T, args ...string) error {
+func run(t *testing.T, f *fakeExecer, args ...string) error {
 	t.Helper()
-	cmd := newRootCmd()
+	cmd := newRootCmd(f)
 	cmd.SetArgs(args)
 	return cmd.Execute()
 }
 
 func TestSendJoinsPositionalArgs(t *testing.T) {
 	f := withFakes(t)
-	if err := run(t, "send", "build", "finished"); err != nil {
+	if err := run(t, f, "send", "build", "finished"); err != nil {
 		t.Fatalf("send error = %v", err)
 	}
 	if len(f.runs) != 1 || f.runs[0][0] != "osascript" {
@@ -50,9 +51,28 @@ func TestSendJoinsPositionalArgs(t *testing.T) {
 	}
 }
 
+func TestSendFlagsReachNotification(t *testing.T) {
+	f := withFakes(t)
+	if err := run(t, f, "send", "msg", "-t", "myTitle", "-s", "mySubtitle", "--sound", "Glass"); err != nil {
+		t.Fatalf("send error = %v", err)
+	}
+	args := f.runs[0]
+	for _, want := range []string{"myTitle", "mySubtitle", "Glass"} {
+		found := false
+		for _, a := range args {
+			if a == want {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("flag value %q not passed to osascript, args = %v", want, args)
+		}
+	}
+}
+
 func TestSendWithSayAlsoSpeaks(t *testing.T) {
 	f := withFakes(t)
-	if err := run(t, "send", "hello", "--say"); err != nil {
+	if err := run(t, f, "send", "hello", "--say"); err != nil {
 		t.Fatalf("send --say error = %v", err)
 	}
 	if len(f.runs) != 2 || f.runs[0][0] != "osascript" || f.runs[1][0] != "say" {
@@ -60,9 +80,24 @@ func TestSendWithSayAlsoSpeaks(t *testing.T) {
 	}
 }
 
+func TestSendRecordsHistoryWhenSayFails(t *testing.T) {
+	f := withFakes(t)
+	f.failName = "say"
+	if err := run(t, f, "send", "delivered anyway", "--say"); err == nil {
+		t.Fatal("send --say with failing say should return an error")
+	}
+	out, err := runCapture(t, f, "history")
+	if err != nil {
+		t.Fatalf("history error = %v", err)
+	}
+	if !strings.Contains(out, "delivered anyway") {
+		t.Errorf("delivered banner missing from history after say failure:\n%s", out)
+	}
+}
+
 func TestSayCommandRunsSay(t *testing.T) {
 	f := withFakes(t)
-	if err := run(t, "say", "hello", "world", "--voice", "Samantha"); err != nil {
+	if err := run(t, f, "say", "hello", "world", "--voice", "Samantha"); err != nil {
 		t.Fatalf("say error = %v", err)
 	}
 	if len(f.runs) != 1 || f.runs[0][0] != "say" {

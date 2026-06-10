@@ -1,7 +1,9 @@
 package history
 
 import (
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -50,6 +52,42 @@ func TestTailMissingFile(t *testing.T) {
 	}
 	if len(got) != 0 {
 		t.Errorf("Tail() on missing file = %+v, want empty", got)
+	}
+}
+
+func TestTailHandlesLongLines(t *testing.T) {
+	s := tempStore(t)
+	long := strings.Repeat("x", 200*1024)
+	if err := s.Append(Entry{Time: time.Now(), Kind: "send", Message: long}); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.Tail(10)
+	if err != nil {
+		t.Fatalf("Tail() with a 200KB line error = %v", err)
+	}
+	if len(got) != 1 || got[0].Message != long {
+		t.Errorf("Tail() did not return the long entry intact (got %d entries)", len(got))
+	}
+}
+
+func TestAppendCreatesPrivateFiles(t *testing.T) {
+	s := tempStore(t)
+	if err := s.Append(Entry{Time: time.Now(), Kind: "send", Message: "secret"}); err != nil {
+		t.Fatal(err)
+	}
+	fi, err := os.Stat(s.Path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fi.Mode().Perm() != 0o600 {
+		t.Errorf("history file mode = %o, want 600", fi.Mode().Perm())
+	}
+	di, err := os.Stat(filepath.Dir(s.Path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if di.Mode().Perm() != 0o700 {
+		t.Errorf("history dir mode = %o, want 700", di.Mode().Perm())
 	}
 }
 
