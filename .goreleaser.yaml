@@ -11,14 +11,9 @@ builds:
 archives:
   - formats: [tar.gz]
 
-brews:
-  - repository:
-      owner: shlyk
-      name: homebrew-tap
-    homepage: https://github.com/shlyk/hark
-    description: macOS notification CLI for AI agents
-    license: MIT
-    skip_upload: auto
+# Homebrew tap intentionally omitted: pushing a formula to a separate
+# homebrew-tap repo requires a PAT secret; `go install` and the release
+# binaries cover distribution for now.
 
 changelog:
   sort: asc
