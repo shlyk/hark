@@ -3,7 +3,7 @@ package cmd
 import (
 	"strings"
 
-	"hark/internal/notify"
+	"github.com/shlyk/hark/internal/notify"
 
 	"github.com/spf13/cobra"
 )

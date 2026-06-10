@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"hark/internal/history"
+	"github.com/shlyk/hark/internal/history"
 
 	"github.com/spf13/cobra"
 )

@@ -5,7 +5,7 @@ import (
 	"os"
 	"time"
 
-	"hark/internal/history"
+	"github.com/shlyk/hark/internal/history"
 )
 
 // record appends to history; failures warn but never fail the command.

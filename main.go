@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"hark/cmd"
+	"github.com/shlyk/hark/cmd"
 )
 
 func main() {

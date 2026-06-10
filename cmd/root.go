@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"hark/internal/notify"
+	"github.com/shlyk/hark/internal/notify"
 
 	"github.com/spf13/cobra"
 )

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"hark/internal/history"
-	"hark/internal/notify"
+	"github.com/shlyk/hark/internal/history"
+	"github.com/shlyk/hark/internal/notify"
 
 	"github.com/spf13/cobra"
 )

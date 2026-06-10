@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"hark/internal/notify"
+	"github.com/shlyk/hark/internal/notify"
 )
 
 type fakeExecer struct {

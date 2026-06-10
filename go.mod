@@ -1,4 +1,4 @@
-module hark
+module github.com/shlyk/hark
 
 go 1.25.5
 
