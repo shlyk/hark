@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -29,11 +31,26 @@ func (f *fakeExecer) Output(name string, args ...string) ([]byte, error) {
 
 func (f *fakeExecer) LookPath(name string) (string, error) { return "/usr/bin/" + name, nil }
 
-// withFakes returns a fake execer and points history at a temp dir.
+// withFakes returns a fake execer and points history and config at temp dirs.
 func withFakes(t *testing.T) *fakeExecer {
 	t.Helper()
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	return &fakeExecer{}
+}
+
+// writeConfig points XDG_CONFIG_HOME at a fresh dir containing the given config.
+func writeConfig(t *testing.T, data string) {
+	t.Helper()
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+	path := filepath.Join(dir, "hark", "config.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(data), 0o600); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func run(t *testing.T, f *fakeExecer, args ...string) error {
@@ -127,6 +144,43 @@ func TestSendSmartStaysSilentWithoutHeadphones(t *testing.T) {
 		if r[0] == "say" {
 			t.Errorf("without headphones, say must not run, runs = %v", f.runs)
 		}
+	}
+}
+
+func TestConfigDefaultsApplyToSend(t *testing.T) {
+	f := withFakes(t)
+	writeConfig(t, `{"title":"cfg-title","smart":true}`)
+	f.output = smartProfile("AirPods Max", "coreaudio_device_type_bluetooth")
+	if err := run(t, f, "send", "hello"); err != nil {
+		t.Fatalf("send error = %v", err)
+	}
+	joined := strings.Join(f.runs[0], "\x00")
+	if !strings.Contains(joined, "cfg-title") {
+		t.Errorf("config title not applied, args = %v", f.runs[0])
+	}
+	last := f.runs[len(f.runs)-1]
+	if last[0] != "say" {
+		t.Errorf("config smart=true with headphones should speak, runs = %v", f.runs)
+	}
+}
+
+func TestFlagOverridesConfig(t *testing.T) {
+	f := withFakes(t)
+	writeConfig(t, `{"title":"cfg-title"}`)
+	if err := run(t, f, "send", "hello", "-t", "flag-title"); err != nil {
+		t.Fatalf("send error = %v", err)
+	}
+	joined := strings.Join(f.runs[0], "\x00")
+	if strings.Contains(joined, "cfg-title") || !strings.Contains(joined, "flag-title") {
+		t.Errorf("flag should override config title, args = %v", f.runs[0])
+	}
+}
+
+func TestSendFailsOnMalformedConfig(t *testing.T) {
+	f := withFakes(t)
+	writeConfig(t, `{broken`)
+	if err := run(t, f, "send", "hello"); err == nil {
+		t.Error("send with malformed config should fail loudly")
 	}
 }
 

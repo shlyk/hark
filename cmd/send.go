@@ -3,6 +3,7 @@ package cmd
 import (
 	"strings"
 
+	"github.com/shlyk/hark/internal/config"
 	"github.com/shlyk/hark/internal/notify"
 
 	"github.com/spf13/cobra"
@@ -16,6 +17,17 @@ func newSendCmd(execer notify.Execer) *cobra.Command {
 		Short: "Send a macOS notification banner",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			cfg, err := config.Load()
+			if err != nil {
+				return err
+			}
+			if !cmd.Flags().Changed("title") && cfg.Title != "" {
+				title = cfg.Title
+			}
+			if !cmd.Flags().Changed("sound") && cfg.Sound != "" {
+				sound = cfg.Sound
+			}
+			smart = smart || cfg.Smart
 			msg := strings.Join(args, " ")
 			n := notify.Notification{Message: msg, Title: title, Subtitle: subtitle, Sound: sound}
 			if err := notify.Send(execer, n); err != nil {
