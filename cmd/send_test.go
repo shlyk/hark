@@ -2,6 +2,9 @@ package cmd
 
 import (
 	"errors"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -181,6 +184,64 @@ func TestSendFailsOnMalformedConfig(t *testing.T) {
 	writeConfig(t, `{broken`)
 	if err := run(t, f, "send", "hello"); err == nil {
 		t.Error("send with malformed config should fail loudly")
+	}
+}
+
+// ntfyServer records POSTed messages and returns the server plus received bodies.
+func ntfyServer(t *testing.T) (*httptest.Server, *[]string) {
+	t.Helper()
+	var bodies []string
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		b, _ := io.ReadAll(r.Body)
+		bodies = append(bodies, string(b))
+	}))
+	t.Cleanup(ts.Close)
+	return ts, &bodies
+}
+
+func TestSendRemoteFlagPushes(t *testing.T) {
+	f := withFakes(t)
+	ts, bodies := ntfyServer(t)
+	writeConfig(t, `{"ntfy":{"server":"`+ts.URL+`","topic":"t"}}`)
+	if err := run(t, f, "send", "hello", "--remote"); err != nil {
+		t.Fatalf("send --remote error = %v", err)
+	}
+	if len(*bodies) != 1 || (*bodies)[0] != "hello" {
+		t.Errorf("ntfy received %v, want [hello]", *bodies)
+	}
+}
+
+func TestSendRemoteWithoutTopicFails(t *testing.T) {
+	f := withFakes(t)
+	if err := run(t, f, "send", "hello", "--remote"); err == nil {
+		t.Error("send --remote without configured topic should fail")
+	}
+}
+
+func TestSendEscalatesWhenAway(t *testing.T) {
+	f := withFakes(t)
+	f.output = []byte(`"IOConsoleLocked" = Yes`)
+	ts, bodies := ntfyServer(t)
+	writeConfig(t, `{"ntfy":{"server":"`+ts.URL+`","topic":"t"},"escalate":{"enabled":true}}`)
+	if err := run(t, f, "send", "ping"); err != nil {
+		t.Fatalf("send error = %v", err)
+	}
+	if len(*bodies) != 1 {
+		t.Errorf("expected escalation push, ntfy received %v", *bodies)
+	}
+}
+
+func TestSendNoEscalationWhenPresent(t *testing.T) {
+	f := withFakes(t)
+	f.output = []byte(`"IOConsoleLocked" = No
+"HIDIdleTime" = 1000000000`)
+	ts, bodies := ntfyServer(t)
+	writeConfig(t, `{"ntfy":{"server":"`+ts.URL+`","topic":"t"},"escalate":{"enabled":true}}`)
+	if err := run(t, f, "send", "ping"); err != nil {
+		t.Fatalf("send error = %v", err)
+	}
+	if len(*bodies) != 0 {
+		t.Errorf("no escalation expected while present, ntfy received %v", *bodies)
 	}
 }
 
