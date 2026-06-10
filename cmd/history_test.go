@@ -122,13 +122,43 @@ func TestHistoryFollowRejectsJSON(t *testing.T) {
 
 func TestDoctorReportsChecks(t *testing.T) {
 	f := withFakes(t)
+	f.output = []byte(`"HIDIdleTime" = 5000000000`)
+	t.Setenv("HOME", t.TempDir())
 	out, err := runCapture(t, f, "doctor")
 	if err != nil {
 		t.Fatalf("doctor error = %v\n%s", err, out)
 	}
-	for _, want := range []string{"osascript", "say", "history", "test notification"} {
+	for _, want := range []string{"osascript", "say", "history", "test notification", "presence", "ntfy"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("doctor output missing %q:\n%s", want, out)
 		}
+	}
+}
+
+func TestDoctorFailsOnMalformedConfig(t *testing.T) {
+	f := withFakes(t)
+	f.output = []byte(`"HIDIdleTime" = 5000000000`)
+	t.Setenv("HOME", t.TempDir())
+	writeConfig(t, `{broken`)
+	out, err := runCapture(t, f, "doctor")
+	if err == nil {
+		t.Errorf("doctor with malformed config should fail:\n%s", out)
+	}
+	if !strings.Contains(out, "config") {
+		t.Errorf("doctor output should mention config:\n%s", out)
+	}
+}
+
+func TestDoctorReportsNtfyTopic(t *testing.T) {
+	f := withFakes(t)
+	f.output = []byte(`"HIDIdleTime" = 5000000000`)
+	t.Setenv("HOME", t.TempDir())
+	writeConfig(t, `{"ntfy":{"topic":"my-topic"}}`)
+	out, err := runCapture(t, f, "doctor")
+	if err != nil {
+		t.Fatalf("doctor error = %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "ntfy") || !strings.Contains(out, "configured") {
+		t.Errorf("doctor should report ntfy as configured:\n%s", out)
 	}
 }
