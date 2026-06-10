@@ -29,6 +29,9 @@ func (f *fakeExecer) Run(name string, args ...string) error {
 
 func (f *fakeExecer) Output(name string, args ...string) ([]byte, error) {
 	f.runs = append(f.runs, append([]string{name}, args...))
+	if name == f.failName {
+		return nil, errors.New(name + " failed")
+	}
 	return f.output, nil
 }
 

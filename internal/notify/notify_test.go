@@ -23,6 +23,8 @@ func (f *fakeExecer) Run(name string, args ...string) error {
 }
 
 func (f *fakeExecer) Output(name string, args ...string) ([]byte, error) {
+	f.ranName = name
+	f.ranArgs = args
 	return f.output, f.outputErr
 }
 
