@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -39,6 +38,9 @@ settings.json.bak. Idempotent; --remove undoes it.`,
 				if err := json.Unmarshal(data, &settings); err != nil {
 					return fmt.Errorf("parsing %s: %w", path, err)
 				}
+				if settings == nil { // file contained literal null
+					settings = map[string]any{}
+				}
 				if err := os.WriteFile(path+".bak", data, 0o600); err != nil {
 					return fmt.Errorf("backing up settings: %w", err)
 				}
@@ -63,7 +65,12 @@ settings.json.bak. Idempotent; --remove undoes it.`,
 			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 				return err
 			}
-			if err := os.WriteFile(path, append(out, '\n'), 0o600); err != nil {
+			// Write atomically: settings.json must never be left truncated.
+			tmp := path + ".tmp"
+			if err := os.WriteFile(tmp, append(out, '\n'), 0o600); err != nil {
+				return err
+			}
+			if err := os.Rename(tmp, path); err != nil {
 				return err
 			}
 			verb := "installed in"
@@ -78,6 +85,21 @@ settings.json.bak. Idempotent; --remove undoes it.`,
 	return cmd
 }
 
+// isRelayHook reports whether one inner hook runs exactly the relay command.
+func isRelayHook(h any) bool {
+	m, ok := h.(map[string]any)
+	return ok && m["command"] == relayCommand
+}
+
+func innerHooks(entry any) []any {
+	m, ok := entry.(map[string]any)
+	if !ok {
+		return nil
+	}
+	hs, _ := m["hooks"].([]any)
+	return hs
+}
+
 // addRelayHooks idempotently merges the relay command into each hook event.
 func addRelayHooks(settings map[string]any) {
 	hooks, _ := settings["hooks"].(map[string]any)
@@ -87,7 +109,15 @@ func addRelayHooks(settings map[string]any) {
 	}
 	for _, event := range hookEvents {
 		entries, _ := hooks[event].([]any)
-		if !containsRelay(entries) {
+		present := false
+		for _, entry := range entries {
+			for _, h := range innerHooks(entry) {
+				if isRelayHook(h) {
+					present = true
+				}
+			}
+		}
+		if !present {
 			entries = append(entries, map[string]any{
 				"hooks": []any{map[string]any{"type": "command", "command": relayCommand}},
 			})
@@ -96,6 +126,8 @@ func addRelayHooks(settings map[string]any) {
 	}
 }
 
+// removeRelayHooks deletes only the relay hook itself; entry groups that
+// also run other hooks are kept with the relay filtered out.
 func removeRelayHooks(settings map[string]any) {
 	hooks, _ := settings["hooks"].(map[string]any)
 	if hooks == nil {
@@ -104,10 +136,26 @@ func removeRelayHooks(settings map[string]any) {
 	for _, event := range hookEvents {
 		entries, _ := hooks[event].([]any)
 		var kept []any
-		for _, e := range entries {
-			if !containsRelay([]any{e}) {
-				kept = append(kept, e)
+		for _, entry := range entries {
+			m, ok := entry.(map[string]any)
+			if !ok {
+				kept = append(kept, entry)
+				continue
 			}
+			hs, _ := m["hooks"].([]any)
+			var keptInner []any
+			for _, h := range hs {
+				if !isRelayHook(h) {
+					keptInner = append(keptInner, h)
+				}
+			}
+			if len(keptInner) == 0 && len(hs) > 0 {
+				continue // group existed only for the relay hook
+			}
+			if len(keptInner) != len(hs) {
+				m["hooks"] = keptInner
+			}
+			kept = append(kept, m)
 		}
 		if len(kept) == 0 {
 			delete(hooks, event)
@@ -118,10 +166,4 @@ func removeRelayHooks(settings map[string]any) {
 	if len(hooks) == 0 {
 		delete(settings, "hooks")
 	}
-}
-
-// containsRelay reports whether any hook entry runs the relay command.
-func containsRelay(entries []any) bool {
-	raw, err := json.Marshal(entries)
-	return err == nil && strings.Contains(string(raw), relayCommand)
 }

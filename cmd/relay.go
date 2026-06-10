@@ -3,8 +3,8 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 
-	"github.com/shlyk/hark/internal/config"
 	"github.com/shlyk/hark/internal/notify"
 
 	"github.com/spf13/cobra"
@@ -27,12 +27,10 @@ smart notification (spoken with headphones, escalated to ntfy when away).
 It is meant to be wired as a hook command — see "hark hook claude".`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			cfg, err := config.Load()
-			if err != nil {
-				return err
-			}
 			var p hookPayload
-			if err := json.NewDecoder(cmd.InOrStdin()).Decode(&p); err != nil {
+			// Empty stdin degrades to the default message: relay's job is
+			// to ping the user, so only malformed JSON is an error.
+			if err := json.NewDecoder(cmd.InOrStdin()).Decode(&p); err != nil && err != io.EOF {
 				return fmt.Errorf("reading hook payload from stdin: %w", err)
 			}
 			agent := args[0]
@@ -49,7 +47,7 @@ It is meant to be wired as a hook command — see "hark hook claude".`,
 			if title == "" {
 				title = agent
 			}
-			return deliver(cmd, execer, cfg, delivery{
+			return deliver(cmd, execer, delivery{
 				kind:         "relay",
 				notification: notify.Notification{Message: msg, Title: title},
 				smart:        true,

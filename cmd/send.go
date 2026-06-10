@@ -17,7 +17,7 @@ const onceWindow = 10 * time.Minute
 
 func newSendCmd(execer notify.Execer) *cobra.Command {
 	var title, subtitle, sound, once string
-	var speak, smart, push bool
+	var speak, smart bool
 	cmd := &cobra.Command{
 		Use:   "send <message>",
 		Short: "Send a macOS notification banner",
@@ -33,6 +33,9 @@ func newSendCmd(execer notify.Execer) *cobra.Command {
 			if !cmd.Flags().Changed("sound") && cfg.Sound != "" {
 				sound = cfg.Sound
 			}
+			if !cmd.Flags().Changed("smart") {
+				smart = cfg.Smart
+			}
 			msg := strings.Join(args, " ")
 			if once != "" {
 				store, err := history.DefaultStore()
@@ -44,12 +47,11 @@ func newSendCmd(execer notify.Execer) *cobra.Command {
 					}
 				}
 			}
-			return deliver(cmd, execer, cfg, delivery{
+			return deliver(cmd, execer, delivery{
 				kind:         "send",
 				notification: notify.Notification{Message: msg, Title: title, Subtitle: subtitle, Sound: sound},
 				speak:        speak,
-				smart:        smart || cfg.Smart,
-				push:         push,
+				smart:        smart,
 				once:         once,
 			})
 		},
@@ -59,7 +61,6 @@ func newSendCmd(execer notify.Execer) *cobra.Command {
 	cmd.Flags().StringVar(&sound, "sound", "", `sound name, e.g. "Glass"`)
 	cmd.Flags().BoolVar(&speak, "say", false, "also speak the message aloud")
 	cmd.Flags().BoolVar(&smart, "smart", false, "speak the message only when headphones are connected")
-	cmd.Flags().BoolVar(&push, "remote", false, "also push to the configured ntfy topic")
 	cmd.Flags().StringVar(&once, "once", "", "dedupe key: skip if already sent with this key in the last 10 minutes")
 	return cmd
 }

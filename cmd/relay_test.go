@@ -54,6 +54,52 @@ func TestRelayGarbageStdinFails(t *testing.T) {
 	}
 }
 
+func TestRelayEmptyStdinUsesDefaultMessage(t *testing.T) {
+	f := withFakes(t)
+	if _, err := runWithStdin(t, f, "", "relay", "claude"); err != nil {
+		t.Fatalf("relay with empty stdin should still notify, got %v", err)
+	}
+	joined := strings.Join(f.runs[0], "\x00")
+	if !strings.Contains(joined, "needs your attention") {
+		t.Errorf("expected default message, args = %v", f.runs[0])
+	}
+}
+
+func TestHookClaudeSurvivesNullSettings(t *testing.T) {
+	f := withFakes(t)
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	os.MkdirAll(filepath.Join(home, ".claude"), 0o755)
+	os.WriteFile(settingsPath(home), []byte("null"), 0o644)
+	if err := run(t, f, "hook", "claude"); err != nil {
+		t.Fatalf("hook claude on null settings error = %v", err)
+	}
+	data, _ := os.ReadFile(settingsPath(home))
+	if !strings.Contains(string(data), "hark relay claude") {
+		t.Errorf("hooks not installed over null settings: %s", data)
+	}
+}
+
+func TestHookRemoveKeepsOtherHooksInSharedGroup(t *testing.T) {
+	f := withFakes(t)
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	os.MkdirAll(filepath.Join(home, ".claude"), 0o755)
+	// A user manually merged the relay into a group that also runs another hook.
+	shared := `{"hooks":{"Stop":[{"hooks":[{"type":"command","command":"hark relay claude"},{"type":"command","command":"my-other-hook"}]}]}}`
+	os.WriteFile(settingsPath(home), []byte(shared), 0o644)
+	if err := run(t, f, "hook", "claude", "--remove"); err != nil {
+		t.Fatalf("hook --remove error = %v", err)
+	}
+	data, _ := os.ReadFile(settingsPath(home))
+	if strings.Contains(string(data), "hark relay claude") {
+		t.Errorf("relay hook not removed: %s", data)
+	}
+	if !strings.Contains(string(data), "my-other-hook") {
+		t.Errorf("unrelated hook in the same group was deleted: %s", data)
+	}
+}
+
 func settingsPath(home string) string {
 	return filepath.Join(home, ".claude", "settings.json")
 }

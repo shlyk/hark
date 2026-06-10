@@ -1,0 +1,26 @@
+version: 2
+
+builds:
+  - binary: hark
+    goos: [darwin]
+    goarch: [arm64, amd64]
+    env: [CGO_ENABLED=0]
+    ldflags:
+      - -s -w -X github.com/shlyk/hark/cmd.version={{.Version}}
+
+archives:
+  - formats: [tar.gz]
+
+brews:
+  - repository:
+      owner: shlyk
+      name: homebrew-tap
+    homepage: https://github.com/shlyk/hark
+    description: macOS notification CLI for AI agents
+    license: MIT
+    skip_upload: auto
+
+changelog:
+  sort: asc
+  filters:
+    exclude: ["^docs"]

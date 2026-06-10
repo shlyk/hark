@@ -12,38 +12,9 @@ import (
 // Config holds user defaults. Precedence at use sites is:
 // explicit flag > config > built-in default.
 type Config struct {
-	Title    string   `json:"title,omitempty"`
-	Smart    bool     `json:"smart,omitempty"`
-	Sound    string   `json:"sound,omitempty"`
-	Ntfy     Ntfy     `json:"ntfy,omitempty"`
-	Escalate Escalate `json:"escalate,omitempty"`
-}
-
-// Ntfy configures the remote push channel. Remote push is enabled by
-// setting a topic.
-type Ntfy struct {
-	Server string `json:"server,omitempty"`
-	Topic  string `json:"topic,omitempty"`
-}
-
-func (n Ntfy) ServerOrDefault() string {
-	if n.Server == "" {
-		return "https://ntfy.sh"
-	}
-	return n.Server
-}
-
-// Escalate configures pushing to ntfy automatically when the user is away.
-type Escalate struct {
-	Enabled     bool `json:"enabled,omitempty"`
-	IdleSeconds int  `json:"idle_seconds,omitempty"`
-}
-
-func (e Escalate) IdleOrDefault() int {
-	if e.IdleSeconds <= 0 {
-		return 300
-	}
-	return e.IdleSeconds
+	Title string `json:"title,omitempty"`
+	Smart bool   `json:"smart,omitempty"`
+	Sound string `json:"sound,omitempty"`
 }
 
 // Path returns the config file location; the file may not exist.

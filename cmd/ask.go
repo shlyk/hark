@@ -27,6 +27,9 @@ Cancel or timeout exits non-zero. --timeout does not apply to --options
 (AppleScript list dialogs cannot time out).`,
 		Args: cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if input && options != "" {
+				return fmt.Errorf("--input and --options are mutually exclusive")
+			}
 			q := notify.Question{
 				Prompt:  strings.Join(args, " "),
 				Title:   title,
@@ -46,7 +49,7 @@ Cancel or timeout exits non-zero. --timeout does not apply to --options
 		},
 	}
 	cmd.Flags().StringVarP(&title, "title", "t", "hark", "dialog title")
-	cmd.Flags().StringVar(&options, "options", "", "comma-separated choices shown as a list")
+	cmd.Flags().StringVar(&options, "options", "", "comma-separated choices shown as a list (choices cannot contain commas)")
 	cmd.Flags().BoolVar(&input, "input", false, "ask for free text instead of buttons")
 	cmd.Flags().IntVar(&timeout, "timeout", 0, "give up after N seconds (not with --options)")
 	return cmd

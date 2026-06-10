@@ -10,7 +10,6 @@ import (
 	"github.com/shlyk/hark/internal/config"
 	"github.com/shlyk/hark/internal/history"
 	"github.com/shlyk/hark/internal/notify"
-	"github.com/shlyk/hark/internal/presence"
 
 	"github.com/spf13/cobra"
 )
@@ -43,20 +42,8 @@ func newDoctorCmd(execer notify.Execer) *cobra.Command {
 			}
 			check("history writable", err)
 
-			cfg, err := config.Load()
+			_, err = config.Load()
 			check("config readable", err)
-			if cfg.Ntfy.Topic != "" {
-				fmt.Fprintf(out, "ok   ntfy configured (%s)\n", cfg.Ntfy.ServerOrDefault())
-			} else {
-				fmt.Fprintln(out, "note ntfy not configured — remote push and escalation are off")
-			}
-
-			idle, idleErr := presence.IdleSeconds(execer)
-			name := "presence detection"
-			if idleErr == nil {
-				name = fmt.Sprintf("presence detection (idle %.0fs)", idle)
-			}
-			check(name, idleErr)
 
 			if focusMayBeActive() {
 				fmt.Fprintln(out, "note a Focus mode may be active — banners can be suppressed")
