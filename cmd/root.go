@@ -22,7 +22,7 @@ It is designed for AI agents that need to notify a human, e.g.:
 Every notification is recorded; see "hark history".`,
 		SilenceUsage: true,
 	}
-	root.AddCommand(newSendCmd(), newSayCmd())
+	root.AddCommand(newSendCmd(), newSayCmd(), newDoctorCmd(), newHistoryCmd())
 	return root
 }
 
