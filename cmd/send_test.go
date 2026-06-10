@@ -11,6 +11,7 @@ import (
 type fakeExecer struct {
 	runs     [][]string
 	failName string // commands with this name fail
+	output   []byte // returned by Output
 }
 
 func (f *fakeExecer) Run(name string, args ...string) error {
@@ -19,6 +20,11 @@ func (f *fakeExecer) Run(name string, args ...string) error {
 		return errors.New(name + " failed")
 	}
 	return nil
+}
+
+func (f *fakeExecer) Output(name string, args ...string) ([]byte, error) {
+	f.runs = append(f.runs, append([]string{name}, args...))
+	return f.output, nil
 }
 
 func (f *fakeExecer) LookPath(name string) (string, error) { return "/usr/bin/" + name, nil }
@@ -92,6 +98,35 @@ func TestSendRecordsHistoryWhenSayFails(t *testing.T) {
 	}
 	if !strings.Contains(out, "delivered anyway") {
 		t.Errorf("delivered banner missing from history after say failure:\n%s", out)
+	}
+}
+
+func smartProfile(name, transport string) []byte {
+	return []byte(`{"SPAudioDataType":[{"_items":[{"_name":"` + name + `","coreaudio_default_audio_output_device":"spaudio_yes","coreaudio_device_transport":"` + transport + `"}]}]}`)
+}
+
+func TestSendSmartSpeaksWithHeadphones(t *testing.T) {
+	f := withFakes(t)
+	f.output = smartProfile("AirPods Max", "coreaudio_device_type_bluetooth")
+	if err := run(t, f, "send", "hello", "--smart"); err != nil {
+		t.Fatalf("send --smart error = %v", err)
+	}
+	last := f.runs[len(f.runs)-1]
+	if last[0] != "say" {
+		t.Errorf("with headphones, expected a say call, runs = %v", f.runs)
+	}
+}
+
+func TestSendSmartStaysSilentWithoutHeadphones(t *testing.T) {
+	f := withFakes(t)
+	f.output = smartProfile("MacBook Pro Speakers", "coreaudio_device_type_builtin")
+	if err := run(t, f, "send", "hello", "--smart"); err != nil {
+		t.Fatalf("send --smart error = %v", err)
+	}
+	for _, r := range f.runs {
+		if r[0] == "say" {
+			t.Errorf("without headphones, say must not run, runs = %v", f.runs)
+		}
 	}
 }
 

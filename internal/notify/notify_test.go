@@ -12,6 +12,8 @@ type fakeExecer struct {
 	runErr      error
 	ranName     string
 	ranArgs     []string
+	output      []byte
+	outputErr   error
 }
 
 func (f *fakeExecer) Run(name string, args ...string) error {
@@ -20,8 +22,41 @@ func (f *fakeExecer) Run(name string, args ...string) error {
 	return f.runErr
 }
 
+func (f *fakeExecer) Output(name string, args ...string) ([]byte, error) {
+	return f.output, f.outputErr
+}
+
 func (f *fakeExecer) LookPath(name string) (string, error) {
 	return "/usr/bin/" + name, f.lookPathErr
+}
+
+func profileJSON(name, transport string) []byte {
+	return []byte(`{"SPAudioDataType":[{"_items":[
+		{"_name":"Mac Studio Speakers","coreaudio_device_transport":"coreaudio_device_type_builtin"},
+		{"_name":"` + name + `","coreaudio_default_audio_output_device":"spaudio_yes","coreaudio_device_transport":"` + transport + `"}
+	]}]}`)
+}
+
+func TestHeadphonesConnected(t *testing.T) {
+	cases := []struct {
+		desc   string
+		output []byte
+		err    error
+		want   bool
+	}{
+		{"bluetooth default output", profileJSON("Alexey's AirPods Max", "coreaudio_device_type_bluetooth"), nil, true},
+		{"wired jack headphones", profileJSON("External Headphones", "coreaudio_device_type_builtin"), nil, true},
+		{"builtin speakers", profileJSON("MacBook Pro Speakers", "coreaudio_device_type_builtin"), nil, false},
+		{"usb speakers", profileJSON("USB Speakers", "coreaudio_device_type_usb"), nil, false},
+		{"detection failure", nil, errors.New("boom"), false},
+		{"garbage output", []byte("not json"), nil, false},
+	}
+	for _, c := range cases {
+		f := &fakeExecer{output: c.output, outputErr: c.err}
+		if got := HeadphonesConnected(f); got != c.want {
+			t.Errorf("%s: HeadphonesConnected() = %v, want %v", c.desc, got, c.want)
+		}
+	}
 }
 
 func TestScriptNeverContainsUserText(t *testing.T) {

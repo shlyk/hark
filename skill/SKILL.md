@@ -21,15 +21,16 @@ suspect you already notified about this event, check `hark history -n 5` first.
 ## How
 
 ```sh
-hark send "<short message>" -t "<source>"       # banner; -t names the sender, e.g. claude, codex, ci
-hark send "<message>" -t claude --sound Glass   # + sound (any name from /System/Library/Sounds)
-hark send "<message>" -t claude --say           # + spoken aloud
+hark send "<short message>" -t "<source>" --smart   # banner; spoken aloud only if the user wears headphones
+hark send "<message>" -t claude --sound Glass       # + sound (any name from /System/Library/Sounds)
+hark send "<message>" -t claude --say               # force speech even on speakers (only if the user asked to be spoken to)
 ```
 
+- Default to `--smart` with `-t` naming you as the sender (e.g. claude, codex, ci).
+  `--smart` speech is private (headphones only), so it needs no explicit consent;
+  `--say` plays over speakers too. Flags combine freely.
 - Keep messages under ~100 characters; lead with the outcome ("Tests passed",
   "Build failed: 3 errors", "Need your decision on X").
-- Default to a plain banner; add `--sound` for failures or blocking questions.
-  Use `--say` only when the user said they are stepping away.
 - Any message text is safe to pass — hark escapes quotes and special characters itself.
 
 ## Verification

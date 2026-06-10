@@ -39,6 +39,7 @@ Requires macOS (uses the built-in `osascript` and `say`).
 hark send "Build finished"                       # banner with default title
 hark send "Tests failed" -t CI --sound Glass     # title + sound
 hark send "Need your input" --say                # banner + spoken aloud
+hark send "Build done" --smart                   # speak only if headphones are connected
 hark say "Deploy is done" --voice Samantha       # speech only
 hark history -n 20                               # what pinged you lately
 hark history --json                              # machine-readable
@@ -77,6 +78,9 @@ Existing files are overwritten — re-run `hark skill` after upgrading.
 - Delivery uses `osascript`; banners appear under Script Editor's identity
   and are not clickable (accepted v1 trade-off — a native UserNotifications
   helper may replace it later without changing the CLI).
+- `--smart` checks the default audio output via `system_profiler` (~1–2 s):
+  Bluetooth audio or a wired headphone jack counts as headphones. If
+  detection fails it falls back to a silent banner.
 - Sounds: any name from `/System/Library/Sounds`, e.g. Glass, Ping, Sosumi.
 
 ## License

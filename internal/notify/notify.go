@@ -13,6 +13,7 @@ import (
 // Execer runs external commands; tests inject a fake.
 type Execer interface {
 	Run(name string, args ...string) error
+	Output(name string, args ...string) ([]byte, error)
 	LookPath(name string) (string, error)
 }
 
@@ -23,6 +24,10 @@ func (SystemExecer) Run(name string, args ...string) error {
 	cmd := exec.Command(name, args...)
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
+}
+
+func (SystemExecer) Output(name string, args ...string) ([]byte, error) {
+	return exec.Command(name, args...).Output()
 }
 
 func (SystemExecer) LookPath(name string) (string, error) { return exec.LookPath(name) }
